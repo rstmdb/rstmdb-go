@@ -236,7 +236,7 @@ func (c *conn) close() error {
 		// Close subscription channels
 		c.subsMu.Lock()
 		for id, sub := range c.subs {
-			sub.closeChannels()
+			sub.closeFromConn()
 			delete(c.subs, id)
 		}
 		c.subsMu.Unlock()

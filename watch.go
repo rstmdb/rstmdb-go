@@ -45,20 +45,22 @@ func (s *Subscription) Close() error {
 	params := map[string]any{"subscription_id": s.ID}
 	_ = s.client.doRequest(context.Background(), opUnwatch, params, nil)
 
-	s.closeChannels()
+	close(s.events)
+	close(s.errors)
 	return nil
 }
 
-func (s *Subscription) closeChannels() {
-	// Safe to call multiple times due to closed flag, but guard channels
-	if s.closed.CompareAndSwap(false, true) {
-		close(s.events)
-		close(s.errors)
+// closeFromConn is called by conn.close() when the connection drops.
+// It marks the subscription closed, sends a final error, and closes the channels.
+func (s *Subscription) closeFromConn() {
+	if !s.closed.CompareAndSwap(false, true) {
 		return
 	}
-	// If already closed via Close(), channels may already be closed
-	// Use recover to avoid panic on double close
-	defer func() { recover() }()
+	// Send a final error so consumers know the stream ended
+	select {
+	case s.errors <- ErrConnectionClosed:
+	default:
+	}
 	close(s.events)
 	close(s.errors)
 }

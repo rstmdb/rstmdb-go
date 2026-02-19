@@ -64,7 +64,11 @@ func main() {
 	count := 0
 	for {
 		select {
-		case event := <-sub.Events:
+		case event, ok := <-sub.Events:
+			if !ok {
+				fmt.Fprintf(os.Stderr, "\nEvent stream closed. Received %d events.\n", count)
+				return
+			}
 			count++
 			fmt.Printf("[%d] %s %s: %s -> %s  (event=%s, wal_offset=%d)\n",
 				count, event.Machine, event.InstanceID,
@@ -73,7 +77,11 @@ func main() {
 			if *includeCtx && event.Ctx != nil {
 				fmt.Printf("     ctx=%v\n", event.Ctx)
 			}
-		case err := <-sub.Errors:
+		case err, ok := <-sub.Errors:
+			if !ok {
+				fmt.Fprintf(os.Stderr, "\nError stream closed. Received %d events.\n", count)
+				return
+			}
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		case <-ctx.Done():
 			fmt.Fprintf(os.Stderr, "\nReceived %d events. Bye!\n", count)
