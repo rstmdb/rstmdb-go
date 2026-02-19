@@ -1,4 +1,4 @@
-.PHONY: all build vet test test-race test-cover test-verbose clean fmt lint check examples
+.PHONY: all build vet test test-race test-cover test-verbose clean fmt lint staticcheck check examples
 
 # Default target
 all: check
@@ -34,21 +34,19 @@ test-cover:
 fmt:
 	gofmt -s -w .
 
-# Run staticcheck if installed, fall back to go vet
-lint:
-	@if command -v staticcheck >/dev/null 2>&1; then \
-		staticcheck ./...; \
-	else \
-		echo "staticcheck not found, running go vet instead"; \
-		go vet ./...; \
-	fi
+# Run staticcheck (requires: go install honnef.co/go/tools/cmd/staticcheck@latest)
+staticcheck:
+	staticcheck ./...
+
+# Run all linters: go vet + staticcheck
+lint: vet staticcheck
 
 # Build all examples
 examples:
 	go build ./examples/...
 
-# Full check: fmt, vet, build, test with race detector
-check: fmt vet build test-race
+# Full check: fmt, lint, build, test with race detector
+check: fmt lint build test-race
 
 # Clean build artifacts
 clean:

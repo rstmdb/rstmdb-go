@@ -19,8 +19,6 @@ const (
 	flagStream     = uint16(0x0004)
 	flagEndStream  = uint16(0x0008)
 	flagValidMask  = uint16(0x000F)
-
-	defaultPort = 7401
 )
 
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
