@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Verify Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -v -count=1 ./...
+
+      - name: Test (race detector)
+        run: go test -race -count=1 ./...
+
+      - name: Verify module
+        run: |
+          echo "Module: $(go list -m)"
+          echo "Version: ${{ github.event.release.tag_name }}"
+
+      - name: Generate coverage report
+        run: |
+          go test -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | tail -1
+
+      - name: Upload coverage to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          go tool cover -html=coverage.out -o coverage.html
+          gh release upload ${{ github.event.release.tag_name }} coverage.html --clobber
+
+      - name: Verify Go module proxy
+        run: |
+          echo "Release ${{ github.event.release.tag_name }} verified."
+          echo ""
+          echo "The Go module proxy will pick up the new version automatically."
+          echo "Users can install with:"
+          echo "  go get github.com/rstmdb/rstmdb-go@${{ github.event.release.tag_name }}"
