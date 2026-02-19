@@ -1,5 +1,11 @@
 # rstmdb-go
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/rstmdb/rstmdb-go.svg)](https://pkg.go.dev/github.com/rstmdb/rstmdb-go)
+[![CI](https://github.com/rstmdb/rstmdb-go/actions/workflows/ci.yml/badge.svg)](https://github.com/rstmdb/rstmdb-go/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rstmdb/rstmdb-go)](https://goreportcard.com/report/github.com/rstmdb/rstmdb-go)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/rstmdb/rstmdb-go)](go.mod)
+
 Official Go client for [rstmdb](https://github.com/rstmdb/rstmdb) — the state machine database.
 
 Implements the full RCP protocol: RCPX binary framing, CRC32C checksums, all 22 operations, 16 error codes, request/response multiplexing, and async subscription streaming on a single TCP connection.
