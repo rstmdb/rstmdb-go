@@ -658,6 +658,35 @@ func TestCompact(t *testing.T) {
 	}
 }
 
+func TestFlushAll(t *testing.T) {
+	s := newMockServer(t, defaultHandler(map[string]any{
+		"FLUSH_ALL": FlushAllResult{
+			Flushed:          true,
+			InstancesRemoved: 42,
+			MachinesRemoved:  5,
+		},
+	}))
+	defer s.close()
+
+	client := connectToMock(t, s, nil)
+	defer client.Close()
+
+	ctx := context.Background()
+	result, err := client.FlushAll(ctx)
+	if err != nil {
+		t.Fatalf("FlushAll: %v", err)
+	}
+	if !result.Flushed {
+		t.Fatal("expected Flushed=true")
+	}
+	if result.InstancesRemoved != 42 {
+		t.Fatalf("instances_removed: got %d, want 42", result.InstancesRemoved)
+	}
+	if result.MachinesRemoved != 5 {
+		t.Fatalf("machines_removed: got %d, want 5", result.MachinesRemoved)
+	}
+}
+
 func TestWatchInstance(t *testing.T) {
 	subID := "sub-watch-1"
 	s := newMockServer(t, func(conn net.Conn, req *request) *rawResponse {

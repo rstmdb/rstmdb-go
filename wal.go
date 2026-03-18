@@ -37,3 +37,13 @@ func (c *Client) Compact(ctx context.Context, forceSnapshot bool) (*CompactResul
 	}
 	return &result, nil
 }
+
+// FlushAll clears all instances and machine definitions from the database.
+// Requires storage.allow_flush_all=true in server configuration.
+func (c *Client) FlushAll(ctx context.Context) (*FlushAllResult, error) {
+	var result FlushAllResult
+	if err := c.doRequest(ctx, opFlushAll, map[string]any{}, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}

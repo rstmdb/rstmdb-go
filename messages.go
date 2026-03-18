@@ -27,6 +27,7 @@ const (
 	opWALRead          operation = "WAL_READ"
 	opWALStats         operation = "WAL_STATS"
 	opCompact          operation = "COMPACT"
+	opFlushAll         operation = "FLUSH_ALL"
 )
 
 // Wire-level message types (unexported).
@@ -310,4 +311,11 @@ type CompactResult struct {
 	BytesReclaimed   int64 `json:"bytes_reclaimed"`
 	TotalSnapshots   int   `json:"total_snapshots"`
 	WALSegments      int   `json:"wal_segments"`
+}
+
+// FlushAllResult is returned from FLUSH_ALL.
+type FlushAllResult struct {
+	Flushed          bool `json:"flushed"`
+	InstancesRemoved int  `json:"instances_removed"`
+	MachinesRemoved  int  `json:"machines_removed"`
 }
