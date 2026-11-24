@@ -19,9 +19,11 @@ func (c *conn) handshake(ctx context.Context, opts *Options) (*HelloResult, erro
 		wireMode = "binary_json"
 	}
 	params["wire_mode"] = wireMode
-	if len(opts.Features) > 0 {
-		params["features"] = opts.Features
+	features := opts.Features
+	if len(features) == 0 {
+		features = []string{"idempotency", "durable_idempotency", "batch"}
 	}
+	params["features"] = features
 
 	id := c.nextRequestID()
 	req := &request{

@@ -1020,14 +1020,19 @@ func TestAllErrorCodes(t *testing.T) {
 		ErrCodeInstanceExists,
 		ErrCodeInvalidTransition,
 		ErrCodeGuardFailed,
+		ErrCodeGuardUnknown,
 		ErrCodeConflict,
+		ErrCodeIdempotencyConflict,
+		ErrCodeReadOnlyMode,
+		ErrCodeReplicationTimeout,
+		ErrCodeReplicationError,
 		ErrCodeWALIOError,
 		ErrCodeInternalError,
 		ErrCodeRateLimited,
 	}
 
-	if len(codes) != 16 {
-		t.Fatalf("expected 16 error codes, got %d", len(codes))
+	if len(codes) != 21 {
+		t.Fatalf("expected 21 error codes, got %d", len(codes))
 	}
 
 	seen := make(map[ErrorCode]bool)
@@ -1070,5 +1075,137 @@ func TestConcurrentRequests(t *testing.T) {
 
 	for err := range errs {
 		t.Fatalf("concurrent Ping failed: %v", err)
+	}
+}
+
+func TestV03AndV1ErrorPredicatesAndUnknownCode(t *testing.T) {
+	cases := []struct {
+		code ErrorCode
+		fn   func(error) bool
+	}{
+		{ErrCodeIdempotencyConflict, IsIdempotencyConflict},
+		{ErrCodeGuardUnknown, IsGuardUnknown},
+		{ErrCodeReadOnlyMode, IsReadOnlyMode},
+		{ErrCodeReplicationTimeout, IsReplicationTimeout},
+		{ErrCodeReplicationError, IsReplicationError},
+	}
+
+	for _, tc := range cases {
+		err := &Error{Code: tc.code, Message: "msg", Retryable: tc.code == ErrCodeReplicationTimeout}
+		if !tc.fn(err) {
+			t.Fatalf("predicate returned false for %s", tc.code)
+		}
+	}
+
+	// Unknown future error code must decode cleanly without parse errors
+	raw := []byte(`{"type":"response","id":"1","status":"error","error":{"code":"FUTURE_ERROR_CODE","message":"future","retryable":true,"details":{"k":"v"}}}`)
+	var resp rawResponse
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		t.Fatalf("unmarshal future error code: %v", err)
+	}
+	if resp.Error == nil || resp.Error.Code != ErrorCode("FUTURE_ERROR_CODE") || !IsRetryable(resp.Error) {
+		t.Fatalf("unexpected decoded error: %#v", resp.Error)
+	}
+	if resp.Error.Details["k"] != "v" {
+		t.Fatalf("expected details k=v, got %#v", resp.Error.Details)
+	}
+}
+
+func TestHelloDefaultFeaturesAndNegotiatedFeatures(t *testing.T) {
+	var sentFeatures []any
+	s := newMockServer(t, func(conn net.Conn, req *request) *rawResponse {
+		if req.Op == "HELLO" {
+			if params, ok := req.Params.(map[string]any); ok {
+				if f, ok := params["features"].([]any); ok {
+					sentFeatures = f
+				}
+			}
+			result, _ := json.Marshal(HelloResult{
+				ProtocolVersion: 1,
+				WireMode:        "binary_json",
+				ServerName:      "mock-rstmdb",
+				ServerVersion:   "0.3.0",
+				Features:        []string{"idempotency", "durable_idempotency", "batch"},
+			})
+			return &rawResponse{Type: "response", ID: req.ID, Status: "ok", Result: result}
+		}
+		if req.Op == "BYE" {
+			return nil
+		}
+		return &rawResponse{Type: "response", ID: req.ID, Status: "ok", Result: json.RawMessage(`{}`)}
+	})
+	defer s.close()
+
+	client := connectToMock(t, s, nil)
+	defer client.Close()
+
+	hasDurable := false
+	for _, f := range sentFeatures {
+		if f == "durable_idempotency" {
+			hasDurable = true
+		}
+	}
+	if !hasDurable {
+		t.Fatalf("expected HELLO default features to advertise durable_idempotency, got %v", sentFeatures)
+	}
+	feats := client.NegotiatedFeatures()
+	if len(feats) != 3 || feats[1] != "durable_idempotency" {
+		t.Fatalf("unexpected NegotiatedFeatures: %v", feats)
+	}
+}
+
+func TestReplicationStatusAndBackup(t *testing.T) {
+	s := newMockServer(t, defaultHandler(map[string]any{
+		"REPLICATION_STATUS": map[string]any{
+			"role": "standalone",
+		},
+		"BACKUP_BEGIN": map[string]any{
+			"backup_id":   "bkp-1",
+			"manifest":    map[string]any{"version": 1},
+			"total_bytes": 5,
+			"chunk_size":  1024,
+		},
+		"BACKUP_CHUNK": map[string]any{
+			"bytes": "aGVsbG8=",
+			"eof":   true,
+		},
+		"BACKUP_END": map[string]any{
+			"ok": true,
+		},
+	}))
+	defer s.close()
+
+	client := connectToMock(t, s, nil)
+	defer client.Close()
+
+	ctx := context.Background()
+	rep, err := client.ReplicationStatus(ctx)
+	if err != nil {
+		t.Fatalf("ReplicationStatus: %v", err)
+	}
+	if rep.Role != "standalone" {
+		t.Fatalf("expected standalone, got %q", rep.Role)
+	}
+
+	bkp, err := client.BackupBegin(ctx, &BackupBeginOptions{Compression: "gzip"})
+	if err != nil {
+		t.Fatalf("BackupBegin: %v", err)
+	}
+	if bkp.BackupID != "bkp-1" || bkp.TotalBytes != 5 {
+		t.Fatalf("unexpected BackupBeginResult: %#v", bkp)
+	}
+
+	chunk, err := client.BackupChunk(ctx, bkp.BackupID, 0, 1024)
+	if err != nil {
+		t.Fatalf("BackupChunk: %v", err)
+	}
+	data, err := chunk.Data()
+	if err != nil || string(data) != "hello" || !chunk.EOF {
+		t.Fatalf("unexpected BackupChunk: data=%q eof=%v err=%v", string(data), chunk.EOF, err)
+	}
+
+	endRes, err := client.BackupEnd(ctx, bkp.BackupID)
+	if err != nil || !endRes.OK {
+		t.Fatalf("BackupEnd: res=%#v err=%v", endRes, err)
 	}
 }
