@@ -6,28 +6,32 @@ import "encoding/json"
 type operation string
 
 const (
-	opHello            operation = "HELLO"
-	opAuth             operation = "AUTH"
-	opPing             operation = "PING"
-	opBye              operation = "BYE"
-	opInfo             operation = "INFO"
-	opPutMachine       operation = "PUT_MACHINE"
-	opGetMachine       operation = "GET_MACHINE"
-	opListMachines     operation = "LIST_MACHINES"
-	opCreateInstance   operation = "CREATE_INSTANCE"
-	opGetInstance      operation = "GET_INSTANCE"
-	opListInstances    operation = "LIST_INSTANCES"
-	opDeleteInstance   operation = "DELETE_INSTANCE"
-	opApplyEvent       operation = "APPLY_EVENT"
-	opBatch            operation = "BATCH"
-	opWatchInstance    operation = "WATCH_INSTANCE"
-	opWatchAll         operation = "WATCH_ALL"
-	opUnwatch          operation = "UNWATCH"
-	opSnapshotInstance operation = "SNAPSHOT_INSTANCE"
-	opWALRead          operation = "WAL_READ"
-	opWALStats         operation = "WAL_STATS"
-	opCompact          operation = "COMPACT"
-	opFlushAll         operation = "FLUSH_ALL"
+	opHello             operation = "HELLO"
+	opAuth              operation = "AUTH"
+	opPing              operation = "PING"
+	opBye               operation = "BYE"
+	opInfo              operation = "INFO"
+	opPutMachine        operation = "PUT_MACHINE"
+	opGetMachine        operation = "GET_MACHINE"
+	opListMachines      operation = "LIST_MACHINES"
+	opCreateInstance    operation = "CREATE_INSTANCE"
+	opGetInstance       operation = "GET_INSTANCE"
+	opListInstances     operation = "LIST_INSTANCES"
+	opDeleteInstance    operation = "DELETE_INSTANCE"
+	opApplyEvent        operation = "APPLY_EVENT"
+	opBatch             operation = "BATCH"
+	opWatchInstance     operation = "WATCH_INSTANCE"
+	opWatchAll          operation = "WATCH_ALL"
+	opUnwatch           operation = "UNWATCH"
+	opSnapshotInstance  operation = "SNAPSHOT_INSTANCE"
+	opWALRead           operation = "WAL_READ"
+	opWALStats          operation = "WAL_STATS"
+	opCompact           operation = "COMPACT"
+	opFlushAll          operation = "FLUSH_ALL"
+	opReplicationStatus operation = "REPLICATION_STATUS"
+	opBackupBegin       operation = "BACKUP_BEGIN"
+	opBackupChunk       operation = "BACKUP_CHUNK"
+	opBackupEnd         operation = "BACKUP_END"
 )
 
 // Wire-level message types (unexported).
@@ -318,4 +322,41 @@ type FlushAllResult struct {
 	Flushed          bool `json:"flushed"`
 	InstancesRemoved int  `json:"instances_removed"`
 	MachinesRemoved  int  `json:"machines_removed"`
+}
+
+// ReplicationStatusResult is returned from REPLICATION_STATUS.
+type ReplicationStatusResult struct {
+	Role                string           `json:"role"`
+	Mode                string           `json:"mode,omitempty"`
+	PrimarySequence     *uint64          `json:"primary_sequence,omitempty"`
+	ConnectedReplicas   *int             `json:"connected_replicas,omitempty"`
+	Replicas            []map[string]any `json:"replicas,omitempty"`
+	Upstream            string           `json:"upstream,omitempty"`
+	LastAppliedSequence *uint64          `json:"last_applied_sequence,omitempty"`
+	LagEntries          *uint64          `json:"lag_entries,omitempty"`
+	LagSeconds          *float64         `json:"lag_seconds,omitempty"`
+}
+
+// BackupBeginOptions configures BACKUP_BEGIN.
+type BackupBeginOptions struct {
+	Compression string `json:"compression,omitempty"`
+}
+
+// BackupBeginResult is returned from BACKUP_BEGIN.
+type BackupBeginResult struct {
+	BackupID   string         `json:"backup_id"`
+	Manifest   map[string]any `json:"manifest"`
+	TotalBytes uint64         `json:"total_bytes"`
+	ChunkSize  uint64         `json:"chunk_size"`
+}
+
+// BackupChunkResult is returned from BACKUP_CHUNK.
+type BackupChunkResult struct {
+	Bytes string `json:"bytes"`
+	EOF   bool   `json:"eof"`
+}
+
+// BackupEndResult is returned from BACKUP_END.
+type BackupEndResult struct {
+	OK bool `json:"ok"`
 }

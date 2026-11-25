@@ -21,7 +21,12 @@ const (
 	ErrCodeInstanceExists              ErrorCode = "INSTANCE_EXISTS"
 	ErrCodeInvalidTransition           ErrorCode = "INVALID_TRANSITION"
 	ErrCodeGuardFailed                 ErrorCode = "GUARD_FAILED"
+	ErrCodeGuardUnknown                ErrorCode = "GUARD_UNKNOWN"
 	ErrCodeConflict                    ErrorCode = "CONFLICT"
+	ErrCodeIdempotencyConflict         ErrorCode = "IDEMPOTENCY_CONFLICT"
+	ErrCodeReadOnlyMode                ErrorCode = "READ_ONLY_MODE"
+	ErrCodeReplicationTimeout          ErrorCode = "REPLICATION_TIMEOUT"
+	ErrCodeReplicationError            ErrorCode = "REPLICATION_ERROR"
 	ErrCodeWALIOError                  ErrorCode = "WAL_IO_ERROR"
 	ErrCodeInternalError               ErrorCode = "INTERNAL_ERROR"
 	ErrCodeRateLimited                 ErrorCode = "RATE_LIMITED"
@@ -78,9 +83,34 @@ func IsGuardFailed(err error) bool {
 	return hasCode(err, ErrCodeGuardFailed)
 }
 
+// IsGuardUnknown reports whether err is an rstmdb GUARD_UNKNOWN error.
+func IsGuardUnknown(err error) bool {
+	return hasCode(err, ErrCodeGuardUnknown)
+}
+
 // IsConflict reports whether err is an rstmdb CONFLICT error.
 func IsConflict(err error) bool {
 	return hasCode(err, ErrCodeConflict)
+}
+
+// IsIdempotencyConflict reports whether err is an rstmdb IDEMPOTENCY_CONFLICT error.
+func IsIdempotencyConflict(err error) bool {
+	return hasCode(err, ErrCodeIdempotencyConflict)
+}
+
+// IsReadOnlyMode reports whether err is an rstmdb READ_ONLY_MODE error.
+func IsReadOnlyMode(err error) bool {
+	return hasCode(err, ErrCodeReadOnlyMode)
+}
+
+// IsReplicationTimeout reports whether err is an rstmdb REPLICATION_TIMEOUT error.
+func IsReplicationTimeout(err error) bool {
+	return hasCode(err, ErrCodeReplicationTimeout)
+}
+
+// IsReplicationError reports whether err is an rstmdb REPLICATION_ERROR error.
+func IsReplicationError(err error) bool {
+	return hasCode(err, ErrCodeReplicationError)
 }
 
 // IsRetryable reports whether the error is safe to retry.
